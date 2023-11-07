@@ -1,6 +1,6 @@
-import styled from '@emotion/styled';
+import styled from 'styled-components';
 
-export const SearchbarHeader = styled.header`
+export const StyledSearchbar = styled.header`
   top: 0;
   left: 0;
   position: sticky;
@@ -19,7 +19,7 @@ export const SearchbarHeader = styled.header`
     0px 4px 5px 0px rgba(0, 0, 0, 0.14), 0px 1px 10px 0px rgba(0, 0, 0, 0.12);
 `;
 
-export const SearchForm = styled.form`
+export const StyledForm = styled.form`
   display: flex;
   align-items: center;
   width: 100%;
@@ -29,33 +29,32 @@ export const SearchForm = styled.form`
   overflow: hidden;
 `;
 
-export const SearchFormButton = styled.button`
+export const SearchFormBtn = styled.button`
+  padding: 4px;
   display: inline-block;
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border: 0;
-  background-image: url('https://img.icons8.com/search');
-  background-size: 40%;
-  background-repeat: no-repeat;
-  background-position: center;
   opacity: 0.6;
   transition: opacity 250ms cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   outline: none;
-  &:hover {
+  :hover {
     opacity: 1;
   }
 `;
 
 export const SearchFormInput = styled.input`
   display: inline-block;
-  padding: 5px;
   width: 100%;
+  font: inherit;
   font-size: 20px;
-  color: gray;
   border: none;
   outline: none;
-  &::placeholder {
+  padding-left: 4px;
+  padding-right: 4px;
+
+  ::placeholder {
     font: inherit;
     font-size: 18px;
   }

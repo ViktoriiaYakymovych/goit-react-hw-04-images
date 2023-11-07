@@ -1,142 +1,97 @@
-import React, { Component } from 'react';
+import { Component } from 'react';
+
+import { fetchImages } from 'api';
 
 import { Searchbar } from 'components/Searchbar/Searchbar';
 import { ImageGallery } from 'components/ImageGallery/ImageGallery';
-import { Loader } from 'components/Loader/Loader';
-import { Modal } from 'components/Modal/Modal';
 import { Button } from 'components/Button/Button';
+import { Loader } from 'components/Loader/Loader';
 
-import { fetchImages } from 'helpers/api';
-
-import { AppDiv } from './App.styled';
+import { StyledApp } from './App.styled';
+import toast, { Toaster } from 'react-hot-toast';
 
 export class App extends Component {
   state = {
-    searchQuery: '',
+    query: '',
     images: [],
-    totalHits: null,
     page: 1,
-    selectedImage: null,
-    isLoading: false,
-    error: null,
-    modal: { isOpen: false, visibleData: null },
-  };
-
-  onSubmitForm = e => {
-    e.preventDefault();
-
-    this.setState(() => ({ page: 1 }));
-    const inputValue = e.target.elements[1].value.trim();
-
-    if (inputValue === '') {
-      this.setState(() => ({ images: [], searchQuery: '' }));
-      return alert(
-        `You forgot to write searching request, please, try one more time.`
-      );
-    }
-
-    this.setState(() => ({ searchQuery: inputValue }));
-    e.target.elements[1].value = '';
-  };
-
-  onLoadMoreBtnClick = () => {
-    this.setState(state => ({ page: state.page + 1 }));
-  };
-
-  onSelectImage = imageId => {
-    this.setState(() => ({ selectedImage: imageId }));
-  };
-
-  onOpenModal = data => {
-    this.setState(() => ({
-      modal: { isOpen: true, visibleData: data },
-    }));
-  };
-
-  onCloseModal = () => {
-    this.setState(() => ({
-      modal: { isOpen: false, visibleData: null },
-      selectedImage: null,
-    }));
+    loading: false,
   };
 
   async componentDidUpdate(prevProps, prevState) {
-    if (
-      prevState.searchQuery !== this.state.searchQuery ||
-      prevState.page !== this.state.page
-    ) {
-      if (this.state.searchQuery === '') {
+    const { query: prevQuery, page: prevPage } = prevState;
+    const { query: nextQuery, page: nextPage } = this.state;
+
+    if (prevQuery !== nextQuery || prevPage !== nextPage) {
+      if (nextQuery === '') {
         return;
       }
-      try {
-        this.setState(() => ({ isLoading: true }));
-        const { hits, totalHits } = await fetchImages(
-          this.state.searchQuery,
-          this.state.page
-        );
 
-        if (this.state.page === 1) {
-          this.setState(() => ({ images: [...hits], totalHits }));
+      try {
+        this.setState({ loading: true });
+
+        const queryImages = await fetchImages(nextQuery, nextPage);
+
+        if (nextPage === 1) {
+          this.setState({ images: [...queryImages] });
         } else {
-          this.setState(state => ({
-            images: [...state.images, ...hits],
-            totalHits,
+          this.setState(prevState => ({
+            images: [...prevState.images, ...queryImages],
           }));
         }
 
-        if (hits.length === 0) {
-          alert(
-            `Sorry, we didn't find images to Your request, try write another one.`
+        if (queryImages.length === 0) {
+          this.setState({ query: '' });
+          return toast.success(
+            `Sorry, we didn't find images to Your request, try write another one.`,
+            {
+              iconTheme: {
+                primary: '#ffff00',
+              },
+            }
           );
-          this.setState(() => ({ searchQuery: '' }));
         }
       } catch (error) {
-        this.setState(() => ({ error: error.message }));
+        return toast.error(
+          `Ooops, there was an error ${error.message}. Please, try one more time.`
+        );
       } finally {
-        this.setState(() => ({ isLoading: false }));
+        this.setState({ loading: false });
       }
-    }
-
-    if (prevState.selectedImage !== this.state.selectedImage) {
-      if (this.state.selectedImage === null) {
-        return;
-      }
-      const largeImage = this.state.images.find(
-        el => el.id === this.state.selectedImage
-      );
-      this.onOpenModal(largeImage);
     }
   }
 
+  changeQuery = e => {
+    e.preventDefault();
+    const newQuery = e.target.elements.query.value.trim();
+
+    if (newQuery === '') {
+      this.setState({ images: [], query: '' });
+      return toast.error(
+        'You forgot to write searching request, please, try one more time.'
+      );
+    }
+    this.setState({
+      query: newQuery,
+      page: 1,
+    });
+    e.target.reset();
+  };
+
+  loadMore = () => {
+    this.setState(prevState => ({ page: prevState.page + 1 }));
+  };
+
   render() {
+    const { images, loading } = this.state;
     return (
-      <AppDiv>
-        <Searchbar onSubmitForm={this.onSubmitForm} />
-        {this.state.isLoading && this.state.images.length <= 0 && <Loader />}
-        {this.state.error !== null && (
-          <p>
-            Something wrong. The error is: {this.state.error}. Please try again
-            later.
-          </p>
-        )}
-        {this.state.images.length > 0 && (
-          <ImageGallery
-            images={this.state.images}
-            selectImg={this.onSelectImage}
-          />
-        )}
-        {this.state.isLoading && this.state.images.length > 0 && <Loader />}
-        {this.state.images.length > 0 &&
-          this.state.page < Math.ceil(this.state.totalHits / 12) && (
-            <Button onBtnClick={this.onLoadMoreBtnClick} />
-          )}
-        {this.state.modal.isOpen && (
-          <Modal
-            modalData={this.state.modal.visibleData}
-            onCloseModal={this.onCloseModal}
-          />
-        )}
-      </AppDiv>
+      <StyledApp>
+        <Searchbar onSubmit={this.changeQuery} />
+        <ImageGallery images={images} />
+        {images.length >= 1 && <Button loadMore={this.loadMore} />}
+        <Loader loading={loading} />
+        <Toaster />
+      </StyledApp>
     );
   }
 }
