@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react';
-
-import toast, { Toaster } from 'react-hot-toast';
+import { Component } from 'react';
 
 import { fetchImages } from 'api';
 
@@ -10,80 +8,98 @@ import { Button } from 'components/Button/Button';
 import { Loader } from 'components/Loader/Loader';
 
 import { StyledApp } from './App.styled';
+import toast, { Toaster } from 'react-hot-toast';
 
-export const App = () => {
-  const [query, setQuery] = useState('');
-  const [images, setImages] = useState([]);
-  const [totalImages, setTotalImages] = useState(0);
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (query === '') {
-      return;
-    }
-    fetchImg(query, page);
-  }, [query, page]);
-
-  const fetchImg = async (q, p) => {
-    try {
-      setLoading(true);
-      const { hits, totalHits } = await fetchImages(q, p);
-      if (page === 1) {
-        setImages([...hits]);
-        setTotalImages(totalHits);
-      } else {
-        setImages(prevState => [...prevState, ...hits]);
-      }
-
-      if (hits.length === 0) {
-        setQuery('');
-        return toast.success(
-          `Sorry, we didn't find images to Your request, try write another one.`,
-          {
-            iconTheme: {
-              primary: '#ffff00',
-            },
-          }
-        );
-      }
-    } catch (err) {
-      setError(err.message);
-      console.log(err.message);
-    } finally {
-      setLoading(false);
-      setError(null);
-    }
+export class App extends Component {
+  state = {
+    query: '',
+    images: [],
+    totalImages: 0,
+    page: 1,
+    loading: false,
+    error: false,
   };
 
-  const changeQuery = e => {
+  async componentDidUpdate(prevProps, prevState) {
+    const { query: prevQuery, page: prevPage } = prevState;
+    const { query: nextQuery, page: nextPage } = this.state;
+
+    if (prevQuery !== nextQuery || prevPage !== nextPage) {
+      if (nextQuery === '') {
+        return;
+      }
+      try {
+        this.setState({ loading: true });
+
+        const resp = await fetchImages(nextQuery, nextPage).then(resp => resp);
+
+        if (nextPage === 1) {
+          this.setState({
+            images: [...resp.hits],
+            totalImages: resp.totalHits,
+          });
+        } else {
+          this.setState(prevState => ({
+            images: [...prevState.images, ...resp.hits],
+          }));
+        }
+
+        if (resp.hits.length === 0) {
+          this.setState({ query: '' });
+          return toast.success(
+            `Sorry, we didn't find images to Your request, try write another one.`,
+            {
+              iconTheme: {
+                primary: '#ffff00',
+              },
+            }
+          );
+        }
+      } catch (err) {
+        this.setState({ error: true });
+        return toast.error(
+          `Ooops, there was an error ${err.message}. Please, try one more time.`
+        );
+      } finally {
+        this.setState({ loading: false, error: false });
+      }
+    }
+  }
+
+  changeQuery = e => {
     e.preventDefault();
     const newQuery = e.target.elements.query.value.trim();
 
     if (newQuery === '') {
-      setImages([]);
-      setQuery('');
+      this.setState({ images: [], query: '' });
       return toast.error(
         'You forgot to write searching request, please, try one more time.'
       );
     }
-    setQuery(newQuery);
-    setPage(1);
+    this.setState({
+      query: newQuery,
+      page: 1,
+    });
     e.target.reset();
   };
 
-  return (
-    <StyledApp>
-      <Searchbar onSubmit={changeQuery} />
-      {images.length > 0 && <ImageGallery images={images} />}
-      {images.length > 0 && page < Math.ceil(totalImages / 12) && (
-        <Button loadMore={() => setPage(prevPage => (prevPage += 1))} />
-      )}
-      {loading && images.length > 0 && <Loader loading={loading} />}
-      <Toaster />
-      {error &&
-        toast.error(`Ooops, there was an error. Please, try one more time.`)}
-    </StyledApp>
-  );
-};
+  loadMore = () => {
+    this.setState(prevState => ({ page: prevState.page + 1 }));
+  };
+
+  render() {
+    const { images, loading, totalImages, page } = this.state;
+
+    return (
+      <StyledApp>
+        <Searchbar onSubmit={this.changeQuery} />
+        {images.length > 0 && <ImageGallery images={images} />}
+        {images.length > 0 && page < Math.ceil(totalImages / 12) && (
+          <Button loadMore={this.loadMore} />
+        )}
+        {loading && images.length > 0 && <Loader loading={loading} />}
+        <Toaster />
+      </StyledApp>
+    );
+  }
+}
