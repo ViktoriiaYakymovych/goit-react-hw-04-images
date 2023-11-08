@@ -14,8 +14,10 @@ export class App extends Component {
   state = {
     query: '',
     images: [],
+    totalImages: 0,
     page: 1,
     loading: false,
+    error: false,
   };
 
   async componentDidUpdate(prevProps, prevState) {
@@ -26,21 +28,23 @@ export class App extends Component {
       if (nextQuery === '') {
         return;
       }
-
       try {
         this.setState({ loading: true });
 
-        const queryImages = await fetchImages(nextQuery, nextPage);
+        const resp = await fetchImages(nextQuery, nextPage).then(resp => resp);
 
         if (nextPage === 1) {
-          this.setState({ images: [...queryImages] });
+          this.setState({
+            images: [...resp.hits],
+            totalImages: resp.totalHits,
+          });
         } else {
           this.setState(prevState => ({
-            images: [...prevState.images, ...queryImages],
+            images: [...prevState.images, ...resp.hits],
           }));
         }
 
-        if (queryImages.length === 0) {
+        if (resp.hits.length === 0) {
           this.setState({ query: '' });
           return toast.success(
             `Sorry, we didn't find images to Your request, try write another one.`,
@@ -51,12 +55,13 @@ export class App extends Component {
             }
           );
         }
-      } catch (error) {
+      } catch (err) {
+        this.setState({ error: true });
         return toast.error(
-          `Ooops, there was an error ${error.message}. Please, try one more time.`
+          `Ooops, there was an error ${err.message}. Please, try one more time.`
         );
       } finally {
-        this.setState({ loading: false });
+        this.setState({ loading: false, error: false });
       }
     }
   }
@@ -83,13 +88,16 @@ export class App extends Component {
   };
 
   render() {
-    const { images, loading } = this.state;
+    const { images, loading, totalImages, page } = this.state;
+
     return (
       <StyledApp>
         <Searchbar onSubmit={this.changeQuery} />
-        <ImageGallery images={images} />
-        {images.length >= 1 && <Button loadMore={this.loadMore} />}
-        <Loader loading={loading} />
+        {images.length > 0 && <ImageGallery images={images} />}
+        {images.length > 0 && page < Math.ceil(totalImages / 12) && (
+          <Button loadMore={this.loadMore} />
+        )}
+        {loading && images.length > 0 && <Loader loading={loading} />}
         <Toaster />
       </StyledApp>
     );
