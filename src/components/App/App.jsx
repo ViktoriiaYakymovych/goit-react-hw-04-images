@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -19,15 +19,21 @@ export const App = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+   const controllerRef = useRef();
+
   useEffect(() => {
     if (query === '') {
       return;
     }
 
     const fetchImg = async (q, p) => {
+      if(controllerRef.current) {
+        controllerRef.current.abort();
+      }
+      controllerRef.current = new AbortController();
       try {
         setLoading(true);
-        const { hits, totalHits } = await fetchImages(q, p);
+        const { hits, totalHits } = await fetchImages(q, p, controllerRef);
 
         if (hits.length === 0) {
           return toast.success(
@@ -43,6 +49,9 @@ export const App = () => {
         setImages(prevState => [...prevState, ...hits]);
         setTotalImages(totalHits);
       } catch (err) {
+        if (err.code !== 'ERR_CANCELED') {
+          setError(err.message);
+        }
         setError(err.message);
       } finally {
         setLoading(false);
